@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: mouhamad-said-ly
+  labels:
+    app: mouhamad-said-ly
+    release: kube-prom
+spec:
+  selector:
+    matchLabels:
+      app: mouhamad-said-ly
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

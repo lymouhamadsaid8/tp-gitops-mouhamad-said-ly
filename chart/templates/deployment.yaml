@@ -25,6 +25,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: 3000
+              name: http
           env:
             - name: POD_NAMESPACE
               valueFrom:
