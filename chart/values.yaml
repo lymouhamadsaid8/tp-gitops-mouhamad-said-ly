@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/lymouhamadsaid8/tp-gitops-mouhamad-said-ly
-  tag: "aed49a9"
+  tag: "bddde15"
   pullPolicy: IfNotPresent
 
 service:
