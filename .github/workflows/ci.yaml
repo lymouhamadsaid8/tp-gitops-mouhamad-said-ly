@@ -1,0 +1,78 @@
+name: CI - build, tests, lint, scan, push, bump GitOps
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer les dependances
+        working-directory: app
+        run: npm ci
+
+      - name: Lancer les tests
+        working-directory: app
+        run: npm test
+
+      - name: Installer Helm
+        uses: azure/setup-helm@v4
+
+      - name: Helm lint
+        run: helm lint chart
+
+      - name: Calculer le sha court
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Connexion a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build de l'image
+        run: |
+          docker build \
+            --build-arg GIT_SHA=${{ steps.vars.outputs.sha_short }} \
+            --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            -t ghcr.io/${{ github.repository_owner }}/tp-gitops-mouhamad-said-ly:${{ steps.vars.outputs.sha_short }} \
+            -t ghcr.io/${{ github.repository_owner }}/tp-gitops-mouhamad-said-ly:latest \
+            ./app
+
+      - name: Scan de vulnerabilites (Trivy)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/tp-gitops-mouhamad-said-ly:${{ steps.vars.outputs.sha_short }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 0
+
+      - name: Push de l'image
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/tp-gitops-mouhamad-said-ly:${{ steps.vars.outputs.sha_short }}
+          docker push ghcr.io/${{ github.repository_owner }}/tp-gitops-mouhamad-said-ly:latest
+
+      - name: Bump du tag dans values.yaml (GitOps)
+        run: |
+          sed -i "s/tag: .*/tag: \"${{ steps.vars.outputs.sha_short }}\"/" chart/values.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add chart/values.yaml
+          git commit -m "ci: bump image vers ${{ steps.vars.outputs.sha_short }} [skip ci]" || echo "rien a committer"
+          git push

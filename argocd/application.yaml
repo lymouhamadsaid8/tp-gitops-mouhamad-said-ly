@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mouhamad-said-ly
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/lymouhamadsaid8/tp-gitops-mouhamad-said-ly.git
+    targetRevision: main
+    path: chart
+    helm:
+      releaseName: mouhamad-said-ly
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mouhamad-said-ly
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
